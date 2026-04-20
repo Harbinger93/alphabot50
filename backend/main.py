@@ -3,9 +3,15 @@ from connection_manager import ConnectionManager
 from market_data import MarketDataManager
 from risk_manager import RiskManager
 from persistence_manager import PersistenceManager
+from auth_manager import AuthManager
+from pydantic import BaseModel
 import uvicorn
 
 app = FastAPI(title="AlphaBot-50 Backend API")
+
+# Schemas
+class LoginRequest(BaseModel):
+    password: str
 
 # Inicialización de módulos
 try:
@@ -13,12 +19,34 @@ try:
     market_manager = MarketDataManager(conn_manager.get_exchange())
     risk_manager = RiskManager()
     persistence_manager = PersistenceManager()
+    auth_manager = AuthManager()
 except Exception as e:
     print(f"⚠️ Error al inicializar módulos: {e}")
 
 @app.get("/")
 async def root():
-    return {"message": "AlphaBot-50 API is running", "status": "online"}
+    return {
+        "message": "AlphaBot-50 API is running", 
+        "status": "online",
+        "initialized": auth_manager.is_initialized()
+    }
+
+@app.post("/auth/init")
+async def init_auth(req: LoginRequest):
+    """Configura la contraseña inicial."""
+    success, msg = auth_manager.initialize_password(req.password)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"message": "Contraseña configurada con éxito"}
+
+@app.post("/auth/login")
+async def login(req: LoginRequest):
+    """Valida la contraseña y retorna un token JWT."""
+    if not auth_manager.verify_password(req.password):
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+    
+    token = auth_manager.create_access_token({"sub": "admin"})
+    return {"access_token": token, "token_type": "bearer"}
 
 @app.get("/market-status")
 async def get_market_status():
