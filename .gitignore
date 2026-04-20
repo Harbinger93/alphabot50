@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+
+# Database/Logs
+data/
+*.json
+!persistence_manager.py # Asegurar que el Manager no se ignore si est en una carpeta data (aunque est en backend)
+backend/data/
+scripts/data/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
