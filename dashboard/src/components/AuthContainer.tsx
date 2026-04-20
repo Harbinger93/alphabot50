@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, ShieldCheck, UserCheck, ArrowRight } from 'lucide-react';
+import { Lock, ShieldCheck, ArrowRight, AlertTriangle } from 'lucide-react';
+import Dashboard from './Dashboard';
 
 const API_BASE = 'http://localhost:8000';
 
 export default function AuthContainer() {
+  const [token, setToken] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [backendDown, setBackendDown] = useState(false);
 
   useEffect(() => {
+    setToken(localStorage.getItem('alpha_token'));
     checkInit();
   }, []);
 
@@ -20,8 +23,10 @@ export default function AuthContainer() {
     try {
       const res = await axios.get(`${API_BASE}/`);
       setIsInitialized(res.data.initialized);
+      setBackendDown(false);
     } catch (err) {
       console.error("Error checking init:", err);
+      setBackendDown(true);
     }
   };
 
@@ -36,12 +41,10 @@ export default function AuthContainer() {
       const res = await axios.post(`${API_BASE}${endpoint}`, { password });
       if (isInitialized) {
         localStorage.setItem('alpha_token', res.data.access_token);
-        setIsLoggedIn(true);
-        window.location.reload(); // Refresh to show dashboard
+        setToken(res.data.access_token);
       } else {
         setIsInitialized(true);
         setPassword('');
-        alert("Contraseña configurada. Por favor, inicia sesión.");
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Error en la autenticación");
@@ -50,7 +53,26 @@ export default function AuthContainer() {
     }
   };
 
-  if (isInitialized === null) return <div className="text-cyan-500">Cargando...</div>;
+  if (token) return <Dashboard />;
+
+  if (backendDown) return (
+    <div className="flex items-center justify-center min-h-[80vh]">
+      <div className="glass-card p-8 text-center border-rose-500/30">
+        <AlertTriangle className="w-12 h-12 neon-text-rose mx-auto mb-4" />
+        <h2 className="text-xl font-bold mb-2">Núcleo Offline</h2>
+        <p className="text-slate-400 text-sm mb-6">El API del bot no responde en <code className="bg-white/5 px-2 py-1 rounded">localhost:8000</code>.</p>
+        <button onClick={checkInit} className="text-cyan-500 hover:underline text-sm font-bold uppercase tracking-widest">Reintentar Conexión</button>
+      </div>
+    </div>
+  );
+
+  if (isInitialized === null) return (
+    <div className="flex items-center justify-center min-h-[80vh]">
+      <div className="text-cyan-500 animate-pulse font-mono tracking-widest text-sm uppercase">
+        Conectando con el Núcleo del Bot...
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex items-center justify-center min-h-[80vh]">

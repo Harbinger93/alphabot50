@@ -7,35 +7,10 @@ import Dashboard from '../components/Dashboard';
 <Layout title="AlphaBot-50 | Command Center">
 	<main class="min-h-screen pt-12 pb-24">
 		<div id="content-root">
-			<!-- Se hidratará con React -->
-			<div class="flex items-center justify-center min-h-[80vh]">
-				<div class="text-cyan-500 animate-pulse font-mono tracking-widest text-sm uppercase">
-					Conectando con el Núcleo del Bot...
-				</div>
-			</div>
+			<AuthContainer client:only="react" />
 		</div>
 	</main>
 </Layout>
-
-<script>
-	// Lógica de hidratación manual para manejar el estado del token sin flasheo
-	import React from 'react';
-	import ReactDOM from 'react-dom/client';
-	import AuthContainer from '../components/AuthContainer';
-	import Dashboard from '../components/Dashboard';
-
-	const root = document.getElementById('content-root');
-	if (root) {
-		const token = localStorage.getItem('alpha_token');
-		const reactRoot = ReactDOM.createRoot(root);
-		
-		if (!token) {
-			reactRoot.render(React.createElement(AuthContainer));
-		} else {
-			reactRoot.render(React.createElement(Dashboard));
-		}
-	}
-</script>
 
 <style>
 	main {

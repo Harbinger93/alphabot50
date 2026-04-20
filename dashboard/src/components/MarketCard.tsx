@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { TrendingUp, Activity, ShieldPath, Zap } from 'lucide-react';
+import { TrendingUp, Activity, Shield, Zap } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000';
 

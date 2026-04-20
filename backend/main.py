@@ -7,7 +7,18 @@ from auth_manager import AuthManager
 from pydantic import BaseModel
 import uvicorn
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="AlphaBot-50 Backend API")
+
+# Configurar CORS para permitir comunicación con el Dashboard
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # En producción se limitaría a la URL del Dashboard
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Schemas
 class LoginRequest(BaseModel):

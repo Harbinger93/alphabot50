@@ -32,7 +32,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin === 'http://localhost:8000',
-            handler: 'NetworkOnly', # Los datos de trading siempre deben ser frescos
+            handler: 'NetworkOnly', // Los datos de trading siempre deben ser frescos
           }
         ]
       }
