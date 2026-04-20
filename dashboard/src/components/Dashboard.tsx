@@ -32,13 +32,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-white/5 px-4 py-2 rounded-lg border border-white/10"
-        >
-          <LogOut className="w-4 h-4" />
-          <span className="text-sm font-semibold uppercase tracking-wider">Salir</span>
-        </button>
+        <div className="flex items-center gap-2 text-slate-400 bg-white/5 px-4 py-2 rounded-lg border border-white/10">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+          <span className="text-xs font-bold uppercase tracking-widest">Live Monitoring</span>
+        </div>
       </header>
 
       <motion.div 

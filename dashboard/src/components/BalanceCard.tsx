@@ -11,10 +11,7 @@ export default function BalanceCard() {
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-        const token = localStorage.getItem('alpha_token');
-        const res = await axios.get(`${API_BASE}/balance`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await axios.get(`${API_BASE}/balance`);
         setBalance(res.data);
       } catch (err) {
         console.error("Error fetching balance:", err);
