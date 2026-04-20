@@ -28,8 +28,20 @@ class PersistenceManager:
             self.engine = create_engine(self.db_url, connect_args={'connect_timeout': 5})
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
+                # Crear tabla si no existe
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS trades (
+                        id SERIAL PRIMARY KEY,
+                        symbol VARCHAR(20),
+                        side VARCHAR(10),
+                        amount DOUBLE PRECISION,
+                        price DOUBLE PRECISION,
+                        timestamp TIMESTAMP WITH TIME ZONE
+                    );
+                """))
+                conn.commit()
             self.Session = sessionmaker(bind=self.engine)
-            logger.info("✅ Conexión a PostgreSQL establecida.")
+            logger.info("✅ Conexión a PostgreSQL (TimescaleDB) establecida.")
             return True
         except Exception as e:
             logger.warning(f"⚠️ PostgreSQL no detectado ({str(e)}). Activando modo OFFLINE (JSON Fallback).")
@@ -86,8 +98,21 @@ class PersistenceManager:
                 if not trades:
                     return True
 
-                logger.info(f"Syncing {len(trades)} trades to PostgreSQL...")
-                # Lógica de sincronización aquí...
+                logger.info(f"🔄 Sincronizando {len(trades)} operaciones a PostgreSQL...")
+                
+                with self.engine.connect() as conn:
+                    for trade in trades:
+                        conn.execute(
+                            text("INSERT INTO trades (symbol, side, amount, price, timestamp) VALUES (:symbol, :side, :amount, :price, :timestamp)"),
+                            {
+                                "symbol": trade.get("symbol"),
+                                "side": trade.get("side"),
+                                "amount": trade.get("amount"),
+                                "price": trade.get("price"),
+                                "timestamp": trade.get("timestamp")
+                            }
+                        )
+                    conn.commit()
                 
                 # Una vez sincronizado, vaciamos el JSON
                 with open(self.offline_file, 'w') as f:

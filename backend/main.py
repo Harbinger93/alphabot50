@@ -22,9 +22,13 @@ async def root():
 
 @app.get("/market-status")
 async def get_market_status():
-    """Retorna el estado actual del mercado y detección de ballenas."""
+    """Retorna el estado del mercado estructurado para el Dashboard."""
     try:
         summary = market_manager.get_market_summary()
+        
+        # Inyectamos el estado real de la persistencia
+        summary["safety"]["persistence_mode"] = "postgresql" if persistence_manager.is_online else "fallback_json"
+        
         return summary
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

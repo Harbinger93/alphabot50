@@ -99,18 +99,23 @@ class MarketDataManager:
             return None
 
     def get_market_summary(self):
-        """Genera un resumen completo para el trigger del bot."""
+        """Genera un resumen completo estructurado para el Frontend (Astro/React)."""
         df = self.fetch_ohlcv()
         is_whale, z_score = self.analyze_volume_anomaly(df)
         sentiment = self.get_top_traders_sentiment()
         
         return {
             "symbol": self.symbol,
-            "price": df['close'].iloc[-1] if df is not None else None,
-            "whale_movement": is_whale,
-            "volume_z_score": z_score,
-            "sentiment": sentiment,
-            "ready_to_trade": is_whale and sentiment and sentiment['bias'] != "NEUTRAL"
+            "price": float(df['close'].iloc[-1]) if df is not None else 0.0,
+            "indicators": {
+                "vol_z_score": round(float(z_score), 2),
+                "whale_signal": is_whale,
+                "ls_ratio": float(sentiment['ratio']) if sentiment else 1.0
+            },
+            "safety": {
+                "persistence_mode": "unknown", # Se rellena en el endpoint principal
+                "cache_mode": "redis" if self.redis else "in_memory"
+            }
         }
 
 if __name__ == "__main__":
