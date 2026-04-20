@@ -49,53 +49,60 @@ class MarketDataManager:
         if std_vol == 0:
             return False, 0
             
-        z_score = (current_volume - mean_vol) / std_vol
-        is_anomaly = z_score > 2.5
+        z_score = float((current_volume - mean_vol) / std_vol)
+        is_anomaly = bool(z_score > 2.5)
         
         if is_anomaly:
-            logger.info(f"🚨 MOVIMIENTO DE BALLENA DETECTADO: Z-Score={z_score:.2f} | Vol={current_volume}")
+            logger.info(f"MOVIMIENTO DE BALLENA DETECTADO: Z-Score={z_score:.2f} | Vol={float(current_volume)}")
             
         return is_anomaly, z_score
 
     def get_top_traders_sentiment(self):
         """Consulta el ratio Long/Short de Top Traders en Binance Futures."""
         try:
-            # Usamos el API implícito de CCXT para el endpoint de Binance
-            # GET /futures/data/topLongShortAccountRatio
             params = {
-                'symbol': self.symbol.replace('/', ''),
+                'symbol': self.symbol.replace('/', ''), # Convert BTC/USDT to BTCUSDT
                 'period': '15m'
             }
-            
-            # Verificamos si hay caché en Redis
             cache_key = f"sentiment:{self.symbol}"
+
+            # En Testnet, los endpoints de fapiData (Sentiment) no suelen estar disponibles.
+            # Intentamos detectar si estamos en sandbox para evitar el error.
+            if getattr(self.exchange, 'urls', {}).get('test'):
+                # Si es Testnet, retornamos un sentimiento simulado para evitar crash
+                return {
+                    "ratio": 1.0,
+                    "bias": "NEUTRAL (SIM)",
+                    "timestamp": datetime.now().isoformat()
+                }
+
+            # Verificamos si hay caché en Redis
             if self.redis:
                 cached = self.redis.get(cache_key)
                 if cached:
                     return json.loads(cached)
 
-            response = self.exchange.fapiPublicGetTopLongShortAccountRatio(params)
+            # En producción usamos fapiDataGetTopLongShortAccountRatio
+            response = self.exchange.fapiDataGetTopLongShortAccountRatio(params)
             
             if not response:
                 return None
                 
             latest_ratio = float(response[-1]['longShortRatio'])
             
-            # Formateamos el resultado
             sentiment = {
                 "ratio": latest_ratio,
                 "bias": "BULLISH" if latest_ratio > 1.2 else "BEARISH" if latest_ratio < 0.8 else "NEUTRAL",
                 "timestamp": datetime.now().isoformat()
             }
             
-            # Guardamos en caché por 30 segundos
             if self.redis:
                 self.redis.setex(cache_key, 30, json.dumps(sentiment))
             
             return sentiment
             
         except Exception as e:
-            logger.error(f"❌ Error al obtener sentimiento: {e}")
+            logger.error(f"Error al obtener sentimiento: {e}")
             return None
 
     def get_market_summary(self):

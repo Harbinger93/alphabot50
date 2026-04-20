@@ -17,19 +17,40 @@ class ConnectionManager:
         is_testnet_str = str(os.getenv('IS_TESTNET', 'True')).lower()
         self.testnet = is_testnet_str == 'true'
         
-        # Inicializamos la conexión a Binance Futures
-        self.exchange = getattr(ccxt, exchange_id)({
+        # Inicializamos la conexión a Binance Futures (USD-M)
+        self.exchange = ccxt.binanceusdm({
             'apiKey': self.api_key,
             'secret': self.secret_key,
             'enableRateLimit': True,
             'options': {
-                'defaultType': 'future'  # Obligatorio para perpetuos
+                'defaultType': 'future',
+                'enableDemoTrading': True # THE SECRET KEY!! Evita fugas a Spot/SAPI
             }
         })
         
         if self.testnet:
-            self.exchange.set_sandbox_mode(True)
-            logger.info("[CONN] Modo Sandbox (Testnet) ACTIVADO.")
+            import urllib3
+            urllib3.disable_warnings()
+            self.exchange.verify = False # Desactiva verificación SSL defectuosa de Demo-FAPI
+            
+            # Reemplazamos inteligentemente los hosts conservando las rutas de CCXT
+            # Para Binance Demo Trading, necesitamos apuntar a demo-fapi específicamente
+            self.exchange.urls['api']['public'] = 'https://demo-fapi.binance.com/fapi/v1'
+            self.exchange.urls['api']['private'] = 'https://demo-fapi.binance.com/fapi/v1'
+            self.exchange.urls['api']['fapiPrivateV3'] = 'https://demo-fapi.binance.com/fapi/v3'
+            
+            if 'test' in self.exchange.urls:
+                self.exchange.urls['test']['public'] = 'https://demo-fapi.binance.com/fapi/v1'
+                self.exchange.urls['test']['private'] = 'https://demo-fapi.binance.com/fapi/v1'
+                self.exchange.urls['test']['fapiPrivateV3'] = 'https://demo-fapi.binance.com/fapi/v3'
+            
+            logger.info("[CONN] Aislamiento Supremo ACTIVADO (demo-fapi + SSL Bypass)")
+        
+        try:
+            self.exchange.load_markets()
+            logger.info(f"✅ Mercados cargados: {len(self.exchange.markets)} disponibles.")
+        except Exception as e:
+            logger.error(f"❌ Error crítico al cargar mercados: {e}")
 
     def get_exchange(self):
         """Devuelve la instancia activa del exchange."""

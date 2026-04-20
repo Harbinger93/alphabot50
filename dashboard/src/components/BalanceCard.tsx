@@ -33,44 +33,46 @@ export default function BalanceCard() {
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="glass-card"
+      className="glass-card h-full flex flex-col justify-between neon-border-cyan"
     >
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-orange-500/10">
-            <Wallet className="w-5 h-5 neon-text-orange" />
+      <div>
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-orange-500/10">
+              <Wallet className="w-5 h-5 neon-text-orange" />
+            </div>
+            <h2 className="text-xl font-bold uppercase tracking-tighter">Balance</h2>
           </div>
-          <h2 className="text-lg font-semibold uppercase tracking-wider">Balance</h2>
-        </div>
-        <div className="p-1 px-2 rounded-md bg-green-500/10 text-green-400 text-[10px] font-bold uppercase">
-          Live Account
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <div className="text-sm text-slate-400 uppercase mb-1 flex items-center gap-1">
-           Total Equity <Landmark className="w-3 h-3" />
-        </div>
-        <div className="text-3xl font-bold flex items-baseline gap-1">
-          <span className="text-slate-500 text-lg">$</span>
-          {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-          <div 
-            className="bg-cyan-500 h-full" 
-            style={{ width: `${(used / total) * 100}%` }}
-          />
-        </div>
-        
-        <div className="flex justify-between text-xs font-mono uppercase">
-          <div className="text-slate-400">
-            Libre: <span className="text-cyan-400">${free.toLocaleString()}</span>
+          <div className="p-1 px-2.5 rounded border border-green-500/20 bg-green-500/10 text-[10px] text-green-400 font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+            Live Account
           </div>
-          <div className="text-slate-400">
-            En Orden: <span className="text-slate-200">${used.toLocaleString()}</span>
+        </div>
+
+        <div className="mb-8">
+          <div className="label-caps mb-1 flex items-center gap-1.5 opacity-70">
+             Total Equity <Landmark className="w-3.5 h-3.5" />
+          </div>
+          <div className="text-4xl font-bold font-mono text-white tracking-tighter flex items-baseline gap-1">
+            <span className="text-slate-500 text-2xl font-sans">$</span>
+            {total.toLocaleString()}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="w-full bg-slate-800/50 h-2 rounded-full overflow-hidden border border-white/5">
+            <div 
+              className="bg-cyan-500 h-full shadow-[0_0_8px_rgba(34,211,238,0.5)]" 
+              style={{ width: `${(used / (total || 1)) * 100}%` }}
+            />
+          </div>
+          
+          <div className="flex justify-between text-[11px] font-mono uppercase tracking-widest">
+            <div className="text-slate-500">
+              Libre: <span className="text-cyan-400 font-bold ml-1">${free.toLocaleString()}</span>
+            </div>
+            <div className="text-slate-500">
+              En Orden: <span className="text-slate-300 font-bold ml-1">${used.toLocaleString()}</span>
+            </div>
           </div>
         </div>
       </div>
