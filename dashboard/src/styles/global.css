@@ -39,13 +39,13 @@ body {
 
 .glass-card {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-glass);
-  border-radius: 1.5rem;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-  transition: all 0.3s ease;
+  border-radius: 1.75rem;
+  padding: 2.25rem; /* Aumentado sustancialmente para evitar bordes pegados */
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.6);
+  transition: all 0.4s ease;
   position: relative;
   overflow: hidden;
 }
@@ -74,11 +74,12 @@ body {
 }
 
 .label-caps {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.25em;
   font-weight: 700;
   color: var(--text-secondary);
+  padding: 0 0.5rem; /* Margen interno para que el texto no pegue */
 }
 
 .neon-text-cyan {

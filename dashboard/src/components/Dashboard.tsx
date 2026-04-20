@@ -145,10 +145,10 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div className="space-y-5 mb-8">
-                <div className="p-5 rounded-2xl bg-black/60 border border-white/5">
-                  <div className="label-caps mb-2 opacity-50">Signal Pipeline</div>
-                  <div className={`text-sm font-bold flex items-center gap-3 ${running ? 'neon-text-cyan' : 'text-slate-500'}`}>
+              <div className="space-y-6 mb-8">
+                <div className="p-7 rounded-2xl bg-black/60 border border-white/10">
+                  <div className="label-caps mb-3 opacity-50 px-1">Signal Pipeline</div>
+                  <div className={`text-base font-bold flex items-center gap-4 px-1 ${running ? 'neon-text-cyan' : 'text-slate-500'}`}>
                     {running ? (
                       <>
                         <span className="relative flex h-2 w-2">
@@ -164,9 +164,9 @@ export default function Dashboard() {
                 </div>
 
                 {activePos ? (
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/30">
-                    <div className="label-caps mb-2 text-purple-400">Position Active</div>
-                    <div className="flex justify-between items-end">
+                  <div className="p-7 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/40 shadow-lg shadow-purple-500/10">
+                    <div className="label-caps mb-3 text-purple-400 px-1">Position Active</div>
+                    <div className="flex justify-between items-end px-1">
                       <div>
                         <div className="text-2xl font-bold font-mono text-white tracking-tighter">{activePos.symbol}</div>
                         <div className="text-xs text-purple-400 font-mono mt-1">{activePos.side} @ {activePos.entry}</div>
