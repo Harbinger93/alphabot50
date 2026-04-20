@@ -56,14 +56,17 @@ async def health_check():
 
 @app.get("/market-status")
 async def get_market_status():
-    """Retorna el estado del mercado estructurado para el Dashboard."""
+    """Retorna el estado de todos los mercados configurados."""
     try:
-        summary = market_manager.get_market_summary()
-        
-        # Inyectamos el estado real de la persistencia
-        summary["safety"]["persistence_mode"] = "postgresql" if persistence_manager.is_online else "fallback_json"
-        
-        return summary
+        import os
+        symbols = os.getenv('TRADED_SYMBOLS', 'BTC/USDT').split(',')
+        summaries = []
+        for symbol in symbols:
+            summary = market_manager.get_market_summary(symbol)
+            if summary:
+                summary["safety"]["persistence_mode"] = "postgresql" if persistence_manager.is_online else "fallback_json"
+                summaries.append(summary)
+        return summaries
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

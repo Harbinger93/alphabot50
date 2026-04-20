@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from datetime import datetime
 from market_data import MarketDataManager
 from risk_manager import RiskManager
@@ -17,7 +18,9 @@ class TradingEngine:
         
         self.is_running = False
         self.active_position = None
-        self.symbol = 'BTC/USDT'
+        # Cargamos los símbolos desde .env
+        self.symbols = os.getenv('TRADED_SYMBOLS', 'BTC/USDT').split(',')
+        logger.info(f"⚙️ Configuración cargada: {len(self.symbols)} activos monitoreados.")
 
     async def start(self):
         """Inicia el bucle principal de trading."""
@@ -26,15 +29,15 @@ class TradingEngine:
             return
             
         self.is_running = True
-        logger.info(f"🚀 MOTOR DE TRADING ACTIVADO - Monitoreando {self.symbol}")
+        logger.info(f"🚀 MOTOR DE TRADING ACTIVADO - Barrido de {len(self.symbols)} activos")
         
         while self.is_running:
             try:
-                await self.check_for_signals()
+                await self.check_all_symbols()
             except Exception as e:
                 logger.error(f"❌ Error en el bucle de trading: {e}")
             
-            # Esperamos 1 minuto antes de la siguiente revisión (ajustable)
+            # Esperamos 1 minuto antes de la siguiente revisión
             await asyncio.sleep(60)
 
     def stop(self):
@@ -42,26 +45,32 @@ class TradingEngine:
         self.is_running = False
         logger.info("🛑 MOTOR DE TRADING DESACTIVADO.")
 
-    async def check_for_signals(self):
-        """Lógica de confluencia para abrir operaciones."""
+    async def check_all_symbols(self):
+        """Escanea todos los símbolos configurados uno por uno."""
         if self.active_position:
-            # Por ahora el bot solo maneja una posición a la vez
-            # Aquí se podría añadir lógica para monitorear el cierre manual o por SL/TP
+            # Si hay una posición activa, no buscamos nuevas entradas
+            # (Estrategia conservadora para gestión de balance)
             return
 
-        logger.info(f"🔍 Escaneando confluencia en {self.symbol}...")
+        for symbol in self.symbols:
+            if not self.is_running: break
+            await self.check_for_signals(symbol)
+            # Pequeña pausa entre símbolos para evitar rate limits si hay muchos
+            await asyncio.sleep(1)
+
+    async def check_for_signals(self, symbol):
+        """Lógica de confluencia para un símbolo específico."""
+        logger.info(f"🔍 Escaneando confluencia en {symbol}...")
         
-        df = self.market_data.fetch_ohlcv()
-        is_whale, z_score = self.market_data.analyze_volume_anomaly(df)
-        sentiment = self.market_data.get_top_traders_sentiment()
+        df = self.market_data.fetch_ohlcv(symbol)
+        if df is None: return
+
+        is_whale, z_score = self.market_data.analyze_volume_anomaly(df, symbol)
+        sentiment = self.market_data.get_top_traders_sentiment(symbol)
         
-        if not sentiment:
-            return
+        if not sentiment: return
 
         # LOGICA DE CONFLUENCIA ALFABOT-50
-        # 1. Anomalía de Volumen (Z-Score > 2.5)
-        # 2. Sentimiento a favor (Ratio > 1.2 para Buy, < 0.8 para Sell)
-        
         signal = None
         if is_whale:
             if sentiment['ratio'] > 1.2:
@@ -70,12 +79,12 @@ class TradingEngine:
                 signal = "SELL"
         
         if signal:
-            logger.info(f"🔥 SEÑAL CONFIRMADA: {signal} | Z-Score: {z_score:.2f} | Ratio: {sentiment['ratio']}")
-            await self.execute_trade(signal)
+            logger.info(f"🔥 SEÑAL CONFIRMADA en {symbol}: {signal} | Z:{z_score:.2f} | R:{sentiment['ratio']}")
+            await self.execute_trade(symbol, signal)
         else:
-            logger.info(f"⚖️ Mercado en equilibrio. Z:{z_score:.2f} | R:{sentiment['ratio']}")
+            logger.info(f"⚖️ {symbol} en equilibrio. Z:{z_score:.2f} | R:{sentiment['ratio']}")
 
-    async def execute_trade(self, side):
+    async def execute_trade(self, symbol, side):
         """Calcula el riesgo y lanza la orden real a Binance."""
         try:
             # 1. Obtener balance real
@@ -83,31 +92,29 @@ class TradingEngine:
             free_balance = float(balance_data['free'].get('USDT', 0))
             
             # 2. Obtener precio actual
-            ticker = self.exchange.fetch_ticker(self.symbol)
+            ticker = self.exchange.fetch_ticker(symbol)
             price = float(ticker['last'])
             
             # 3. Calcular setup con RiskManager
             setup = self.risk_manager.get_trade_setup(free_balance, price, side)
             
             if setup['quantity'] <= 0:
-                logger.warning("⚠️ Tamaño de posición insuficiente para los parámetros de riesgo.")
+                logger.warning(f"⚠️ {symbol}: Tamaño de posición insuficiente.")
                 return
 
-            logger.info(f"📦 Preparando orden: {side} {setup['quantity']} BTC @ {price}")
+            logger.info(f"📦 Preparando orden: {side} {setup['quantity']} {symbol} @ {price}")
             
             # 4. Ejecutar orden de mercado
-            # Nota: En Testnet esto se reflejará inmediatamente
             order = self.exchange.create_order(
-                symbol=self.symbol,
+                symbol=symbol,
                 type='market',
                 side=side.lower(),
                 amount=setup['quantity']
             )
             
-            # 5. Colocar SL y TP (Órdenes automáticas)
-            # En producción esto debería ser más robusto (órdenes ligadas)
+            # 5. Colocar SL y TP
             self.exchange.create_order(
-                symbol=self.symbol,
+                symbol=symbol,
                 type='stop_market',
                 side='sell' if side == 'BUY' else 'buy',
                 amount=setup['quantity'],
@@ -115,21 +122,21 @@ class TradingEngine:
             )
             
             self.exchange.create_order(
-                symbol=self.symbol,
+                symbol=symbol,
                 type='take_profit_market',
                 side='sell' if side == 'BUY' else 'buy',
                 amount=setup['quantity'],
                 params={'stopPrice': setup['tp']}
             )
             
-            self.active_position = setup
-            logger.info(f"✅ OPERACIÓN ABIERTA: ID {order['id']}")
+            self.active_position = {**setup, "symbol": symbol}
+            logger.info(f"✅ OPERACIÓN ABIERTA en {symbol}: ID {order['id']}")
             
             # 6. Persistencia
             self.persistence.log_trade({
                 "id": order['id'],
                 "timestamp": datetime.now().isoformat(),
-                "symbol": self.symbol,
+                "symbol": symbol,
                 "side": side,
                 "qty": setup['quantity'],
                 "entry": price,
@@ -138,14 +145,4 @@ class TradingEngine:
             })
             
         except Exception as e:
-            logger.error(f"❌ Error crítico al ejecutar trade: {e}")
-
-if __name__ == "__main__":
-    from connection_manager import ConnectionManager
-    
-    async def test_engine():
-        conn = ConnectionManager()
-        engine = TradingEngine(conn)
-        await engine.start()
-
-    asyncio.run(test_engine())
+            logger.error(f"❌ Error crítico en trade ({symbol}): {e}")

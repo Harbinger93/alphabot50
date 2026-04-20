@@ -1,37 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Activity, Shield, Zap } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
+interface MarketCardProps {
+  data: any;
+}
 
-export default function MarketCard() {
-  const [data, setData] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await axios.get(`${API_BASE}/market-status`);
-        setData(res.data);
-      } catch (err) {
-        console.error("Error fetching market data:", err);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
+export default function MarketCard({ data }: MarketCardProps) {
   if (!data) return <div className="glass-card h-48 animate-pulse" />;
 
   const isWhale = data.indicators.whale_signal;
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className={`glass-card h-full flex flex-col justify-between neon-border-cyan ${isWhale ? 'border-amber-500/50 shadow-amber-500/20 shadow-lg' : ''}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`glass-card flex flex-col justify-between neon-border-cyan mb-4 ${isWhale ? 'border-amber-500/50 shadow-amber-500/20 shadow-lg' : ''}`}
     >
       {isWhale && (
         <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 pulse-glow" />
@@ -45,40 +29,36 @@ export default function MarketCard() {
             </div>
             <h2 className="text-xl font-bold uppercase tracking-tighter">{data.symbol}</h2>
           </div>
-          <div className="stats-value text-3xl tracking-tighter">
-            ${data.price.toLocaleString()}
+          <div className="stats-value text-2xl tracking-tighter font-mono">
+            ${data.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 rounded-xl bg-black/40 border border-white/5">
-            <div className="label-caps mb-1 opacity-70">Z-Score Vol</div>
-            <div className={`stats-value text-2xl ${Math.abs(data.indicators.vol_z_score) > 2.0 ? 'neon-text-orange' : 'text-cyan-400'}`}>
+            <div className="label-caps mb-1 opacity-70">Z-Score</div>
+            <div className={`stats-value text-xl ${Math.abs(data.indicators.vol_z_score) > 2.0 ? 'neon-text-orange' : 'text-cyan-400'}`}>
               {data.indicators.vol_z_score.toFixed(2)}σ
             </div>
           </div>
 
           <div className="p-4 rounded-xl bg-black/40 border border-white/5">
             <div className="label-caps mb-1 opacity-70">LS Ratio</div>
-            <div className={`stats-value text-2xl ${data.indicators.ls_ratio > 1.2 ? 'neon-text-cyan' : data.indicators.ls_ratio < 0.8 ? 'neon-text-rose' : 'text-purple-400'}`}>
+            <div className={`stats-value text-xl ${data.indicators.ls_ratio > 1.2 ? 'neon-text-cyan' : data.indicators.ls_ratio < 0.8 ? 'neon-text-rose' : 'text-purple-400'}`}>
               {data.indicators.ls_ratio.toFixed(2)}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-8 pt-4 border-t border-white/5 flex gap-4 text-[10px] text-slate-500 uppercase font-mono tracking-widest">
-        <div className="flex items-center gap-1.5">
-          <div className={`w-1.5 h-1.5 rounded-full ${data.safety.cache_mode === 'redis' ? 'bg-cyan-500' : 'bg-slate-500'}`} />
+      <div className="mt-6 pt-3 border-t border-white/5 flex gap-4 text-[9px] text-slate-500 uppercase font-mono tracking-widest">
+        <div className="flex items-center gap-1">
+          <div className={`w-1 h-1 rounded-full ${data.safety.cache_mode === 'redis' ? 'bg-cyan-500' : 'bg-slate-500'}`} />
           {data.safety.cache_mode}
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className={`w-1.5 h-1.5 rounded-full ${data.safety.persistence_mode === 'postgresql' ? 'bg-cyan-500' : 'bg-orange-500'}`} />
-          {data.safety.persistence_mode.replace('_', ' ')}
-        </div>
-        <div className="ml-auto flex items-center gap-1.5 text-cyan-500/70">
-          <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-          ACTIVE
+        <div className="ml-auto flex items-center gap-1 text-cyan-500/50">
+          <div className="w-1 h-1 rounded-full bg-cyan-500 animate-pulse" />
+          LIVE
         </div>
       </div>
     </motion.div>

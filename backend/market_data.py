@@ -10,7 +10,6 @@ logger = logging.getLogger("MarketDataManager")
 class MarketDataManager:
     def __init__(self, exchange, redis_host='localhost', redis_port=6379):
         self.exchange = exchange
-        self.symbol = 'BTC/USDT'
         self.timeframe = '15m'
         
         # Conexión a Redis con Fallback a memoria local
@@ -23,24 +22,24 @@ class MarketDataManager:
             self.redis = None
             self.local_cache = {}
 
-    def fetch_ohlcv(self, limit=50):
-        """Obtiene las últimas velas de 15m de Binance."""
+    def fetch_ohlcv(self, symbol, limit=50):
+        """Obtiene las últimas velas de 15m de Binance para un símbolo específico."""
         try:
-            ohlcv = self.exchange.fetch_ohlcv(self.symbol, timeframe=self.timeframe, limit=limit)
+            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe=self.timeframe, limit=limit)
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             return df
         except Exception as e:
-            logger.error(f"❌ Error al obtener OHLCV: {e}")
+            logger.error(f"❌ Error al obtener OHLCV para {symbol}: {e}")
             return None
 
-    def analyze_volume_anomaly(self, df):
+    def analyze_volume_anomaly(self, df, symbol):
         """Detecta anomalías de volumen usando Z-Score (2.5 Sigma)."""
         if df is None or df.empty:
             return False, 0
             
         # Tomamos los últimos 20 periodos para la media y sigma
-        volume_data = df['volume'].iloc[:-1] # Excluimos la vela actual incompleta si es necesario
+        volume_data = df['volume'].iloc[:-1] # Excluimos la vela actual incompleta if necessary
         current_volume = df['volume'].iloc[-1]
         
         mean_vol = volume_data.mean()
@@ -53,36 +52,33 @@ class MarketDataManager:
         is_anomaly = bool(z_score > 2.5)
         
         if is_anomaly:
-            logger.info(f"MOVIMIENTO DE BALLENA DETECTADO: Z-Score={z_score:.2f} | Vol={float(current_volume)}")
+            logger.info(f"MOVIMIENTO DE BALLENA DETECTADO en {symbol}: Z-Score={z_score:.2f} | Vol={float(current_volume)}")
             
         return is_anomaly, z_score
 
-    def get_top_traders_sentiment(self):
-        """Consulta el ratio Long/Short de Top Traders en Binance Futures."""
+    def get_top_traders_sentiment(self, symbol):
+        """Consulta el ratio Long/Short de Top Traders en Binance Futures para un símbolo."""
         try:
             params = {
-                'symbol': self.symbol.replace('/', ''), # Convert BTC/USDT to BTCUSDT
+                'symbol': symbol.replace('/', ''), 
                 'period': '15m'
             }
-            cache_key = f"sentiment:{self.symbol}"
+            cache_key = f"sentiment:{symbol}"
 
             # En Testnet, los endpoints de fapiData (Sentiment) no suelen estar disponibles.
-            # Intentamos detectar si estamos en sandbox para evitar el error.
             if getattr(self.exchange, 'urls', {}).get('test'):
-                # Si es Testnet, retornamos un sentimiento simulado para evitar crash
                 return {
                     "ratio": 1.0,
                     "bias": "NEUTRAL (SIM)",
                     "timestamp": datetime.now().isoformat()
                 }
 
-            # Verificamos si hay caché en Redis
+            # Verificamos caché
             if self.redis:
                 cached = self.redis.get(cache_key)
                 if cached:
                     return json.loads(cached)
 
-            # En producción usamos fapiDataGetTopLongShortAccountRatio
             response = self.exchange.fapiDataGetTopLongShortAccountRatio(params)
             
             if not response:
@@ -102,35 +98,28 @@ class MarketDataManager:
             return sentiment
             
         except Exception as e:
-            logger.error(f"Error al obtener sentimiento: {e}")
+            logger.error(f"Error al obtener sentimiento para {symbol}: {e}")
             return None
 
-    def get_market_summary(self):
-        """Genera un resumen completo estructurado para el Frontend (Astro/React)."""
-        df = self.fetch_ohlcv()
-        is_whale, z_score = self.analyze_volume_anomaly(df)
-        sentiment = self.get_top_traders_sentiment()
+    def get_market_summary(self, symbol):
+        """Genera un resumen completo estructurado para un símbolo."""
+        df = self.fetch_ohlcv(symbol)
+        if df is None:
+            return None
+            
+        is_whale, z_score = self.analyze_volume_anomaly(df, symbol)
+        sentiment = self.get_top_traders_sentiment(symbol)
         
         return {
-            "symbol": self.symbol,
-            "price": float(df['close'].iloc[-1]) if df is not None else 0.0,
+            "symbol": symbol,
+            "price": float(df['close'].iloc[-1]) if not df.empty else 0.0,
             "indicators": {
                 "vol_z_score": round(float(z_score), 2),
                 "whale_signal": is_whale,
                 "ls_ratio": float(sentiment['ratio']) if sentiment else 1.0
             },
             "safety": {
-                "persistence_mode": "unknown", # Se rellena en el endpoint principal
+                "persistence_mode": "unknown",
                 "cache_mode": "redis" if self.redis else "in_memory"
             }
         }
-
-if __name__ == "__main__":
-    from connection_manager import ConnectionManager
-    
-    conn = ConnectionManager()
-    mdm = MarketDataManager(conn.get_exchange())
-    
-    print("--- Analizando BTC/USDT ---")
-    summary = mdm.get_market_summary()
-    print(json.dumps(summary, indent=4))
